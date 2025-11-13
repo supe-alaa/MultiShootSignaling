@@ -7,7 +7,7 @@ app.use(cors());
 app.use(express.json());
 
 let rooms = {};
-const wss = new WebSocketServer({ port: 8081 });
+const wss = new WebSocketServer({ port: 8080 });
 
 wss.on("connection", (ws) => {
   ws.on("message", (msg) => {
@@ -31,7 +31,7 @@ wss.on("connection", (ws) => {
 app.post("/create-room", (req, res) => {
   const roomCode = Math.floor(1000 + Math.random() * 9000).toString();
   rooms[roomCode] = [];
-  res.json({ roomCode, wsUrl: "wss://multishootsignaling.fly.dev:8081" });
+  res.json({ roomCode, wsUrl: "wss://multishootsignaling.fly.dev:8080" });
 });
 
 
@@ -45,3 +45,4 @@ app.post('/join-room', (req, res) => {
 });
 
 app.listen(8080, () => console.log("Matchmaker server running on port 8080"));
+
