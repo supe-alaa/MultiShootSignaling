@@ -1,22 +1,39 @@
-import express from 'express';
-import cors from 'cors';
+import express from "express";
+import cors from "cors";
+import { WebSocketServer } from "ws";
 
 const app = express();
-
-// Middleware
 app.use(cors());
-app.use(express.json()); // هذا مهم جدًا لتجهيز req.body
+app.use(express.json());
 
 let rooms = {};
+const wss = new WebSocketServer({ port: 8081 });
 
-app.post('/create-room', (req, res) => {
-    const { hostIP, hostPort } = req.body;
-    console.log("Request body:", req.body); // تحقق هنا إذا فيه بيانات
-    const roomCode = Math.floor(1000 + Math.random() * 9000).toString(); // 4 digits
-    console.log("Generated room code:", roomCode)
-    rooms[roomCode] = { hostIP, hostPort };
-    res.json({ roomCode });
+wss.on("connection", (ws) => {
+  ws.on("message", (msg) => {
+    const data = JSON.parse(msg);
+    if (data.type === "join") {
+      const { roomCode } = data;
+      if (!rooms[roomCode]) rooms[roomCode] = [];
+      rooms[roomCode].push(ws);
+      console.log("Client joined room:", roomCode);
+    } else if (data.type === "msg") {
+      const { roomCode, message } = data;
+      for (const client of rooms[roomCode] || []) {
+        if (client !== ws && client.readyState === 1) {
+          client.send(JSON.stringify({ message }));
+        }
+      }
+    }
+  });
 });
+
+app.post("/create-room", (req, res) => {
+  const roomCode = Math.floor(1000 + Math.random() * 9000).toString();
+  rooms[roomCode] = [];
+  res.json({ roomCode, wsUrl: "wss://multishootsignaling.fly.dev:8081" });
+});
+
 
 app.post('/join-room', (req, res) => {
     const { roomCode } = req.body;
@@ -28,4 +45,3 @@ app.post('/join-room', (req, res) => {
 });
 
 app.listen(8080, () => console.log("Matchmaker server running on port 8080"));
-
