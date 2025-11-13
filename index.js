@@ -27,4 +27,5 @@ app.post('/join-room', (req, res) => {
     }
 });
 
-app.listen(3000, () => console.log("Matchmaker server running on port 3000"));
+app.listen(8080, () => console.log("Matchmaker server running on port 8080"));
+
