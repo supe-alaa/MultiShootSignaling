@@ -1,59 +1,36 @@
-// server.js
-import express from "express";
-import cors from "cors";
-import { WebSocketServer } from "ws";
+import express from 'express';
+import cors from 'cors';
 
 const app = express();
+
+// Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json()); // هذا مهم جدًا لتجهيز req.body
 
-let rooms = {}; // تخزين الرومات
+let rooms = {};
 
-// WebSocket server على port 8081
-const wss = new WebSocketServer({ port: 8081 });
+// إنشاء روم جديد
+app.post('/create-room', (req, res) => {
+    const { hostIP, hostPort } = req.body;
+    console.log("Request body:", req.body); // تحقق هنا إذا فيه بيانات
 
-wss.on("connection", (ws) => {
-  ws.on("message", (msg) => {
-    const data = JSON.parse(msg);
+    const roomCode = Math.floor(1000 + Math.random() * 9000).toString(); // 4 digits
+    console.log("Generated room code:", roomCode);
 
-    if (data.type === "join") {
-      const { roomCode } = data;
-      if (!rooms[roomCode]) rooms[roomCode] = [];
-      rooms[roomCode].push(ws);
-      console.log(`Client joined room ${roomCode}`);
-    } else if (data.type === "msg") {
-      const { roomCode, message } = data;
-      for (const client of rooms[roomCode] || []) {
-        if (client !== ws && client.readyState === 1) {
-          client.send(JSON.stringify({ message }));
-        }
-      }
+    rooms[roomCode] = { hostIP, hostPort };
+    res.json({ roomCode });
+});
+
+// الانضمام لروم موجود
+app.post('/join-room', (req, res) => {
+    const { roomCode } = req.body;
+
+    if (rooms[roomCode]) {
+        res.json({ hostIP: rooms[roomCode].hostIP, hostPort: rooms[roomCode].hostPort });
+    } else {
+        res.status(404).json({ error: "Room not found" });
     }
-  });
-
-  ws.on("close", () => {
-    for (const room of Object.values(rooms)) {
-      const index = room.indexOf(ws);
-      if (index !== -1) room.splice(index, 1);
-    }
-  });
 });
 
-// HTTP API لإنشاء روم
-app.post("/create-room", (req, res) => {
-  const roomCode = Math.floor(1000 + Math.random() * 9000).toString();
-  rooms[roomCode] = [];
-  res.json({ roomCode, wsUrl: "wss://multishootsignaling.fly.dev:8081" });
-});
-
-// HTTP API للانضمام
-app.post("/join-room", (req, res) => {
-  const { roomCode } = req.body;
-  if (rooms[roomCode]) {
-    res.json({ roomCode, wsUrl: "wss://multishootsignaling.fly.dev:8081" });
-  } else {
-    res.status(404).json({ error: "Room not found" });
-  }
-});
-
-app.listen(3000, () => console.log("HTTP running on 3000, WS on 8081"));
+// تشغيل السيرفر
+app.listen(3000, () => console.log("Matchmaker server running on port 3000"));
